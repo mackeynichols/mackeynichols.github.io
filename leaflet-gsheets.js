@@ -2,21 +2,53 @@
 var googleSheet
 
 function getSheet() {
-	Http = new XMLHttpRequest();
-	url='https://sheets.googleapis.com/v4/spreadsheets/1BVG0By0wuB2eE93NjYIkWDaHsfVrsPc5wOSNw8-yp34/values/Counties to Scrape?key=AIzaSyAQGuzh7Nnn3RhxiMyoLrxwDGln9wh9MCg'
-	Http.open("GET", url);
-	Http.send();
-
-	Http.onreadystatechange = (e) => {
-		if(typeof(Http.responseText) !== "undefined"){
-			googleSheet = JSON.parse(Http.responseText)
-		}
-	}
+	$.getJSON( "https://sheets.googleapis.com/v4/spreadsheets/1BVG0By0wuB2eE93NjYIkWDaHsfVrsPc5wOSNw8-yp34/values/Counties to Scrape?key=AIzaSyAQGuzh7Nnn3RhxiMyoLrxwDGln9wh9MCg", function(data) {
+	googleSheet = data;
+	init();
+}).fail(function () {
+	console.log("Failed to get google sheet.");
+})
 }
 
 // init() is called as soon as the page loads
 function init() {
-// Bits for the leaflet map
+
+function loadedStyle(i){
+	return {
+		weight: 0.5,
+		fillColor: getColor(googleSheet.values[i].length),
+		color: "#666",
+		fillOpacity: 0.7
+	}
+	}
+
+function unloadedStyle(){
+	return {
+		fillColor: '#666', //getColor(feature.properties.density)
+		weight: 1,
+		opacity: 1,
+		color: 'black',
+		fillOpacity: 0.2
+	}
+	}
+
+	function highlightStyle(i){
+		return {
+			weight: 2,
+			fillColor: getColor(googleSheet.values[i].length),
+			color: "#000",
+			fillOpacity: 0.7
+		}
+	}
+
+	function clickStyle(i){
+		return {
+			weight: 0.5,
+			fillColor: getColor(googleSheet.values[i].length),
+			color: "#666",
+			fillOpacity: 0.7
+		}
+	}
 
 	function getColor(d) {
 		return d > 8 ? '#00AB08' :
@@ -29,16 +61,24 @@ function init() {
 						  '#FFEDA0';
 	}
 
+// Initialize all feature styles here
 	function style(feature) {
-		return {
-			fillColor: '#666', //getColor(feature.properties.density)
-			weight: 1,
-			opacity: 1,
-			color: 'black',
-			fillOpacity: 0.2
-		};
+		for (i = 0; i < googleSheet.values.length; i++) {
+			if(
+				(googleSheet.values[i][0] == feature.properties.STATE && googleSheet.values[i][1] == feature.properties.NAME + " County") ||
+				(googleSheet.values[i][0] == feature.properties.STATE && googleSheet.values[i][1] == feature.properties.NAME + " Parish") ||
+				(googleSheet.values[i][0] == feature.properties.STATE && googleSheet.values[i][1] == feature.properties.NAME + " Borough") ||
+				(googleSheet.values[i][0] == feature.properties.STATE && googleSheet.values[i][1] == feature.properties.NAME + " Census Area")
+				){
+				return loadedStyle(i);
+				info.update(googleSheet.values[i]);
+				}
+		  }
+		return unloadedStyle();
 	}
-  	var info = L.control();
+
+
+  var info = L.control();
 
 	info.onAdd = function (map) {
 		this._div = L.DomUtil.create('div', 'info');
@@ -46,7 +86,8 @@ function init() {
 		return this._div;
 	};
 
-	info.update = function (props) {		
+
+	info.update = function (props) {
 		if(typeof(props) !== "undefined"){
 			output = '<b> State</b>: ' + props[0] + '<br>' +
 					 '<b> County</b>: ' + props[1] + '<br>' +
@@ -56,46 +97,42 @@ function init() {
 					 '<b> Courts Website</b>: ' + props[5] + '<br>' +
 					 '<b> What Data Exists</b>: ' + props[6] + '<br>' +
 					 '<b> Code</b>: ' + props[7] + '<br>' +
-					 '<b> FOIA Required</b>: ' + props[8] + '<br>' 
+					 '<b> FOIA Required</b>: ' + props[8] + '<br>'
 		}else{output = "Hover over a county"}
 
-		this._div.innerHTML = '<h4>US Counties</h4>' +  output 
-			
+		this._div.innerHTML = '<h4>US Counties</h4>' +  output
+
 	};
 
+
 	info.addTo(map);
-  
-  	function highlightFeature(e) {
-		var layer = e.target;
 
-		
 
-		if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-				layer.bringToFront();
-			}
-		
-		for (i = 0; i < googleSheet.values.length; i++) {
-			if(
-				(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " County") ||
-				(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " Parish") ||
-				(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " Borough") ||
-				(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " Census Area")
-				){
-				layer.setStyle({
-					weight: 2,
-					fillColor: getColor(googleSheet.values[i].length),
-					color: "#000",
-					fillOpacity: 0.7
-				});
-				info.update(googleSheet.values[i]);
-			}
-		  }
-		
+	function highlightFeature(e) {
+	var layer = e.target;
+
+	if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+			layer.bringToFront();
+		}
+
+	for (i = 0; i < googleSheet.values.length; i++) {
+		if(
+			(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " County") ||
+			(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " Parish") ||
+			(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " Borough") ||
+			(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " Census Area")
+			){
+			layer.setStyle(highlightStyle(i));
+			info.update(googleSheet.values[i]);
+		}
+	  }
+
 	}
+
 
 	function clickFeature(e) {
 		var layer = e.target;
-		
+
 		for (i = 0; i < googleSheet.values.length; i++) {
 			if(
 				(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " County") ||
@@ -103,12 +140,7 @@ function init() {
 				(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " Borough") ||
 				(googleSheet.values[i][0] == layer.feature.properties.STATE && googleSheet.values[i][1] == layer.feature.properties.NAME + " Census Area")
 				){
-				layer.setStyle({
-					weight: 0.5,
-					fillColor: getColor(googleSheet.values[i].length),
-					color: "#666",
-					fillOpacity: 0.7
-				});
+				layer.setStyle(clickStyle(i));
 			}
 		  }
 	}
@@ -117,7 +149,7 @@ function init() {
 		clickFeature(e);
 		info.update()
 	}
-  
+
 
 	function onEachFeature(feature, layer) {
 		layer.on({
@@ -129,7 +161,6 @@ function init() {
 	}
 
 
-
 	geojson = L.geoJson(polygonData, {
 		style: style,
 		onEachFeature: onEachFeature
@@ -138,9 +169,7 @@ function init() {
 }
 
 
-
-getSheet()
-window.addEventListener("DOMContentLoaded", init);
+window.addEventListener("DOMContentLoaded", getSheet);
 
 
 // Create a new Leaflet map centered on the continental US
@@ -157,10 +186,3 @@ var basemap = L.tileLayer(
   }
 );
 basemap.addTo(map);
-
-window.addEventListener('load', function () {
-	map.eachLayer(function (layer) {
-		layer.fireEvent('click')
-	});
-})
-
